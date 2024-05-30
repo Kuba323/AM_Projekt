@@ -1,0 +1,14 @@
+[
+{
+  "directory": "D:/AM_Project/projekt_test/build",
+  "command": "D:\\MinGW\\bin\\gcc.exe   -g -o CMakeFiles\\mniam_player.dir\\main.c.obj -c D:\\AM_Project\\projekt_test\\main.c",
+  "file": "D:/AM_Project/projekt_test/main.c",
+  "output": "CMakeFiles/mniam_player.dir/main.c.obj"
+},
+{
+  "directory": "D:/AM_Project/projekt_test/build",
+  "command": "D:\\MinGW\\bin\\gcc.exe   -g -o CMakeFiles\\mniam_player.dir\\amcom.c.obj -c D:\\AM_Project\\projekt_test\\amcom.c",
+  "file": "D:/AM_Project/projekt_test/amcom.c",
+  "output": "CMakeFiles/mniam_player.dir/amcom.c.obj"
+}
+]
