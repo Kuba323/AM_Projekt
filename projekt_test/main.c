@@ -20,34 +20,114 @@ uint16_t minNo=0;
 
 
 //
-//typedef struct {
-//    uint8_t playerNo;
-//    uint16_t hp;
-//    float x;
-//    float y;
-//}Player;
+struct Player{
+    uint8_t playerNo;
+    uint16_t hp;
+    float x;
+    float y;
+    struct Player* next;
+};
+
+struct Food{
+    uint16_t foodNo;
+    uint8_t state;
+    float x;
+    float y;
+    struct Food* next;
+};
 //
-//typedef struct{
-//    uint16_t foodNo;
-//    uint8_t state;
-//    float x;
-//    float y;
-//    struct Food* next;
-//}Food;
-//
-//Player players[8];
-//Food food[48];
+//struct Player players[AMCOM_MAX_PLAYER_UPDATES];
+//struct Food food[AMCOM_MAX_FOOD_UPDATES];
 
-AMCOM_PlayerState players[AMCOM_MAX_PLAYER_UPDATES];
-AMCOM_FoodState food[AMCOM_MAX_FOOD_UPDATES];
+//AMCOM_PlayerState players[AMCOM_MAX_PLAYER_UPDATES];
+//AMCOM_FoodState food[AMCOM_MAX_FOOD_UPDATES];
 
-float minResult=1000;
-float tmp=0;
-float minX=0;
-float minY=0;
-float tempX=0;
-float tempY=0;
+struct Food food[AMCOM_MAX_FOOD_UPDATES];
+struct Player players[AMCOM_MAX_PLAYER_UPDATES];
 
+//float minResult=1000;
+//float tmp=0;
+//float minX=0;
+//float minY=0;
+//float tempX=0;
+//float tempY=0;
+
+void actualizeFood(struct Food* food, uint8_t No, uint8_t state, float x, float y){
+
+    food->foodNo = No;
+    food->state = state;
+    food->x=x;
+    food->y=y;
+}
+
+static struct Food* head=NULL;
+void addFood(struct Food* food){
+
+    if(head==NULL){
+        head = food;
+        head->next = NULL;
+    }
+
+    struct Food* current = head;
+    while(current->next != NULL){
+        current = current->next;
+    }
+
+    current->next = food;
+    food->next = NULL;
+}
+
+float getAngleToClosestFood(float PlayerX, float PlayerY){
+
+    float minResult = 1001;
+    float tmp=0;
+    float angle=0;
+    float foodX=0, foodY=0;
+    uint16_t No;
+
+    if(head==NULL) return 0;
+
+    struct Food* current = head;
+
+    while(current){
+
+        tmp = sqrtf(powf(current->x - PlayerX,2) + powf(current->y - PlayerY,2));
+        if(tmp<minResult){
+            minResult = tmp;
+            foodX = current->x;
+            foodY = current->y;
+        }
+        current = current->next;
+    }
+
+    angle = atan2(foodY-PlayerY, foodX-PlayerX);
+    printf("ANGLE: %f\n", angle);
+    return angle;
+}
+
+void deleteFood(uint16_t No) {
+    if (head == NULL) return; // Lista jest pusta, nic do usunięcia
+
+    struct Food* current = head;
+    struct Food* prev = NULL;
+
+    // Specjalny przypadek dla głowy listy
+    if (head->foodNo == No) {
+        if (head != NULL) {
+            head = head->next;
+        }
+    }
+
+    // Przechodzenie przez listę w poszukiwaniu elementu do usunięcia
+    while (current != NULL) {
+        if (current->foodNo == No) {
+            prev->next = current->next;
+            return;
+        }
+        prev = current;
+        current = current->next;
+    }
+}
 
 void amPacketHandler(const AMCOM_Packet* packet, void* userContext) {
     uint8_t buf[AMCOM_MAX_PACKET_SIZE];
@@ -84,34 +164,24 @@ void amPacketHandler(const AMCOM_Packet* packet, void* userContext) {
 
             printf("Got FOOD_UPDATE.request. Responding with FOOD_UPDATE.response\n");
             AMCOM_FoodUpdateRequestPayload *foodUpdate = (AMCOM_FoodUpdateRequestPayload *) packet->payload;
-            if(gameTime==0) {
-                for (uint8_t i = 0; i < 6; i++) {
-                    foodsNo[i] = foodUpdate->foodState[i].foodNo;
-                    printf("FoodsNo: %d", foodsNo[i]);
-                }
 
-                for (uint8_t i = 0; i < 6; i++) {
-                    food[foodsNo[i]].foodNo = foodUpdate->foodState[i].foodNo;
+            if(gameTime==0){
+                for(uint8_t i=0; i<6; i++){
+                    actualizeFood(&food[i], foodUpdate->foodState[i].foodNo, foodUpdate->foodState[i].state,
+                                  foodUpdate->foodState[i].x, foodUpdate->foodState[i].y);
 
-                    food[foodsNo[i]].state = foodUpdate->foodState[i].state;
-                    food[foodsNo[i]].x = foodUpdate->foodState[i].x;
-                    food[foodsNo[i]].y = foodUpdate->foodState[i].y;
-//                if(foodUpdate->foodState[i].state==0) food[i].state=0;
-                    printf("FOOD: [ %d, %d, %f, %f]\n", food[foodsNo[i]].foodNo,
-                           food[foodsNo[i]].state, food[foodsNo[i]].x,
-                           food[foodsNo[i]].y);
+                    addFood(&food[i]);
                 }
             }
             else{
                 for(uint8_t i=0; i<6; i++){
                     if(foodUpdate->foodState[i].state==0){
-                        food[foodsNo[i]].state=foodUpdate->foodState[i].state;
+                        deleteFood(foodUpdate->foodState->foodNo);
+                        printf("Delete\n");
+                        continue;
                     }
-                }
-                for(uint8_t i=0; i<6; i++){
-                    printf("FOOD: [ %d, %d, %f, %f]\n", food[foodsNo[i]].foodNo,
-                           food[foodsNo[i]].state, food[foodsNo[i]].x,
-                           food[foodsNo[i]].y);
+                    actualizeFood(&food[i], foodUpdate->foodState[i].foodNo, foodUpdate->foodState[i].state,
+                                  foodUpdate->foodState[i].x, foodUpdate->foodState[i].y);
                 }
             }
 
@@ -141,24 +211,8 @@ void amPacketHandler(const AMCOM_Packet* packet, void* userContext) {
              AMCOM_MoveRequestPayload *getTime = (AMCOM_MoveRequestPayload *)packet->payload;
             gameTime = getTime->gameTime;
             printf("GETTIME: %d", gameTime);
-            tempX=players[playerNumber].x;
-            tempY=players[playerNumber].y;
-            minResult=1000;
 
-            for(uint8_t i=0; i<6; i++){
-                if(food[foodsNo[i]].state==1){
-                    tmp = sqrtf(((food[foodsNo[i]].x)-tempX)+((food[foodsNo[i]].y)-tempY));
-                    if(tmp<minResult){
-                        minResult = tmp;
-                        minX = food[foodsNo[i]].x;
-                        minY = food[foodsNo[i]].y;
-                    }
-                }
-            }
-
-
-            moveResponse.angle= atan2(minY-tempY, minX-tempX);
-
+            moveResponse.angle= getAngleToClosestFood(players[playerNumber].x, players[playerNumber].y);
 
 
             toSend = AMCOM_Serialize(AMCOM_MOVE_RESPONSE, &moveResponse, sizeof(moveResponse), buf);
