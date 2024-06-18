@@ -1,0 +1,3 @@
+D:/AM_Project/projekt/cmake-build-debug/CMakeFiles/mniam_player.dir
+D:/AM_Project/projekt/cmake-build-debug/CMakeFiles/edit_cache.dir
+D:/AM_Project/projekt/cmake-build-debug/CMakeFiles/rebuild_cache.dir
